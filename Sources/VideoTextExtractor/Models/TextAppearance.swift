@@ -47,31 +47,18 @@ public struct TextAppearance: Sendable, Codable {
 
     /// The first-seen timestamp formatted as `"M:SS"` or `"H:MM:SS"`.
     public var formattedFirstSeen: String {
-        Self.formatTime(firstSeen)
+        TimeFormatting.clock(firstSeen)
     }
 
     /// The last-seen timestamp formatted as `"M:SS"` or `"H:MM:SS"`.
     public var formattedLastSeen: String {
-        Self.formatTime(lastSeen)
+        TimeFormatting.clock(lastSeen)
     }
 
     /// The duration formatted as `"M:SS"` or `"H:MM:SS"`.
     public var formattedDuration: String {
-        Self.formatTime(duration)
+        TimeFormatting.clock(duration)
     }
 
-    /// Formats a time interval as a human-readable string.
-    ///
-    /// - Parameter seconds: Time in seconds.
-    /// - Returns: Formatted string as `"M:SS"` or `"H:MM:SS"`.
-    private static func formatTime(_ seconds: Double) -> String {
-        let total = Int(seconds)
-        let h = total / 3600
-        let m = (total % 3600) / 60
-        let s = total % 60
-        return h > 0
-            ? String(format: "%d:%02d:%02d", h, m, s)
-            : String(format: "%d:%02d", m, s)
-    }
 
 }

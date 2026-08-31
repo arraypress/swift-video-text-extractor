@@ -74,13 +74,7 @@ public struct VideoTextResult: Sendable {
 
     /// The video duration formatted as `"M:SS"` or `"H:MM:SS"`.
     public var formattedDuration: String {
-        let total = Int(videoDuration)
-        let h = total / 3600
-        let m = (total % 3600) / 60
-        let s = total % 60
-        return h > 0
-            ? String(format: "%d:%02d:%02d", h, m, s)
-            : String(format: "%d:%02d", m, s)
+        TimeFormatting.clock(videoDuration)
     }
 
     /// All unique text joined as a single string, separated by newlines.
@@ -148,54 +142,6 @@ public struct VideoTextResult: Sendable {
 
     // MARK: - JSON Export
 
-    /// A compact, JSON-friendly summary of the extraction result.
-    ///
-    /// Designed for passing to LLMs, APIs, or saving to disk. Contains only
-    /// the useful data: plain text, timeline with formatted timestamps,
-    /// detected data, barcodes, tables (as 2D string arrays), and lists.
-    ///
-    /// Excludes bounding boxes, confidence scores, and per-frame detail —
-    /// access those directly via ``frames`` if needed.
-    struct JSONSummary: Codable, Sendable {
-
-        /// Formatted video duration (e.g., "1:23:45").
-        let duration: String
-
-        /// Number of frames processed.
-        let frames: Int
-
-        /// All unique text joined with newlines.
-        let plainText: String
-
-        /// Timeline showing when each text appeared and disappeared.
-        let timeline: [TimelineEntry]
-
-        /// Unique detected data items — URLs, emails, phone numbers, etc.
-        let detectedData: [DataEntry]
-
-        /// Unique barcode payloads.
-        let barcodes: [String]
-
-        /// Tables as 2D string arrays (rows of cells).
-        let tables: [[[String]]]
-
-        /// Lists as arrays of item strings.
-        let lists: [[String]]
-
-        /// A single timeline entry with formatted timestamps.
-        struct TimelineEntry: Codable, Sendable {
-            let text: String
-            let from: String
-            let to: String
-        }
-
-        /// A detected data entry.
-        struct DataEntry: Codable, Sendable {
-            let type: String
-            let value: String
-        }
-    }
-
     /// Encodes the result as compact JSON `Data`.
     ///
     /// The output is optimised for LLM consumption — no bounding boxes,
@@ -211,33 +157,7 @@ public struct VideoTextResult: Sendable {
     /// - Returns: UTF-8 encoded JSON data.
     /// - Throws: `EncodingError` if encoding fails.
     public func jsonData(prettyPrinted: Bool = true) throws -> Data {
-        let summary = JSONSummary(
-            duration: formattedDuration,
-            frames: processedFrames,
-            plainText: plainText,
-            timeline: timeline.map { entry in
-                JSONSummary.TimelineEntry(
-                    text: entry.text,
-                    from: entry.formattedFirstSeen,
-                    to: entry.formattedLastSeen
-                )
-            },
-            detectedData: uniqueDetectedData.map { item in
-                JSONSummary.DataEntry(type: item.kind.rawValue, value: item.value)
-            },
-            barcodes: uniqueBarcodes.compactMap(\.payload),
-            tables: allTables.map { table in
-                table.rows.map { row in row.map(\.text) }
-            },
-            lists: allLists.map(\.items)
-        )
-
-        let encoder = JSONEncoder()
-        encoder.keyEncodingStrategy = .convertToSnakeCase
-        if prettyPrinted {
-            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        }
-        return try encoder.encode(summary)
+        return try ResultJSON.data(for: self, prettyPrinted: prettyPrinted)
     }
 
     /// Encodes the result as a compact JSON string.
